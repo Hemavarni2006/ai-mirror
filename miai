@@ -1,0 +1,77 @@
+import cv2
+import speech_recognition as sr
+import tkinter as tk
+from datetime import datetime
+import requests
+
+# Function to detect user presence
+def detect_face():
+    face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+    cap = cv2.VideoCapture(0)
+    
+    while True:
+        ret, frame = cap.read()
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+        
+        if len(faces) > 0:
+            print("User detected!")
+            break
+        
+        cv2.imshow('Face Detection', frame)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+    
+    cap.release()
+    cv2.destroyAllWindows()
+
+def get_weather():
+    api_key = "your_api_key"  # Replace with a real API key
+    city = "New York"
+    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={api_key}&units=metric"
+    response = requests.get(url).json()
+    if response.get("main"):
+        return f"{city}: {response['main']['temp']}°C, {response['weather'][0]['description']}"
+    return "Weather unavailable"
+
+# Voice Recognition Function
+def voice_command():
+    recognizer = sr.Recognizer()
+    with sr.Microphone() as source:
+        print("Listening...")
+        try:
+            audio = recognizer.listen(source)
+            command = recognizer.recognize_google(audio)
+            return command.lower()
+        except sr.UnknownValueError:
+            return ""
+        except sr.RequestError:
+            return ""
+
+# GUI Display
+def display_info():
+    root = tk.Tk()
+    root.title("AI Smart Mirror")
+    root.geometry("500x400")
+    root.configure(bg='black')
+    
+    time_label = tk.Label(root, text=datetime.now().strftime('%H:%M:%S'), font=("Arial", 20), fg='white', bg='black')
+    time_label.pack(pady=10)
+    
+    weather_label = tk.Label(root, text=get_weather(), font=("Arial", 14), fg='white', bg='black')
+    weather_label.pack(pady=10)
+    
+    command_label = tk.Label(root, text="Say a command...", font=("Arial", 14), fg='white', bg='black')
+    command_label.pack(pady=10)
+    
+    def update_command():
+        command = voice_command()
+        command_label.config(text=f"You said: {command}")
+        root.after(5000, update_command)
+    
+    root.after(5000, update_command)
+    root.mainloop()
+
+# Run the Smart Mirror
+detect_face()
+display_info()
